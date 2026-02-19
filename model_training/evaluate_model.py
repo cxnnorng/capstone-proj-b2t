@@ -41,6 +41,20 @@ b2txt_csv_df = pd.read_csv(args.csv_path)
 # load model args
 model_args = OmegaConf.load(os.path.join(model_path, 'checkpoint/args.yaml'))
 
+# load diphone vocab if the model was trained with diphones
+diphone_vocab_path = os.path.join(model_path, 'checkpoint', 'diphone_vocab.json')
+use_diphones = False
+diphone_to_id = None
+id_to_diphone = None
+if os.path.exists(diphone_vocab_path):
+    from nejm_b2txt_utils.diphone_utils import load_diphone_vocab, diphone_seq_to_mono_seq, diphone_logits_to_mono_logits
+    diphone_to_id, id_to_diphone = load_diphone_vocab(diphone_vocab_path)
+    use_diphones = True
+    print(f'Loaded diphone vocabulary with {len(diphone_to_id)} entries from {diphone_vocab_path}')
+else:
+    from nejm_b2txt_utils.diphone_utils import diphone_seq_to_mono_seq, diphone_logits_to_mono_logits
+    print('No diphone_vocab.json found — running in standard monophone mode.')
+
 # set up gpu device
 gpu_number = args.gpu_number
 if torch.cuda.is_available() and gpu_number >= 0:
@@ -136,7 +150,13 @@ for session, data in test_data.items():
         # remove consecutive duplicates
         pred_seq = [pred_seq[i] for i in range(len(pred_seq)) if i == 0 or pred_seq[i] != pred_seq[i-1]]
         # convert to phonemes
-        pred_seq = [LOGIT_TO_PHONEME[p] for p in pred_seq]
+        # if the model was trained with diphones, convert decoded diphone IDs back
+        # to monophone IDs first so LOGIT_TO_PHONEME (size 41) is used correctly
+        if use_diphones and id_to_diphone is not None:
+            pred_seq_mono = diphone_seq_to_mono_seq(pred_seq, id_to_diphone)
+            pred_seq = [LOGIT_TO_PHONEME[int(p)] for p in pred_seq_mono if int(p) < len(LOGIT_TO_PHONEME)]
+        else:
+            pred_seq = [LOGIT_TO_PHONEME[p] for p in pred_seq]
         # add to data
         data['pred_seq'].append(pred_seq)
 
@@ -187,7 +207,13 @@ with tqdm(total=total_test_trials, desc='Running remote language model', unit='t
     for session in test_data.keys():
         for trial in range(len(test_data[session]['logits'])):
             # get trial logits and rearrange them for the LM
-            logits = rearrange_speech_logits_pt(test_data[session]['logits'][trial])[0]
+            # if trained with diphones, aggregate (T x N_diphones) -> (T x 41)
+            # before handing off to the language model pipeline (which is unchanged)
+            trial_logits = test_data[session]['logits'][trial]
+            if use_diphones and id_to_diphone is not None:
+                mono = diphone_logits_to_mono_logits(trial_logits[0], id_to_diphone)
+                trial_logits = np.expand_dims(mono, 0)  # restore batch dim: (1, T, 41)
+            logits = rearrange_speech_logits_pt(trial_logits)[0]
 
             # reset language model
             remote_lm_done_resetting_lastEntrySeen = reset_remote_language_model(r, remote_lm_done_resetting_lastEntrySeen)

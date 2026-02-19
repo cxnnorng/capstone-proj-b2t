@@ -116,6 +116,39 @@ class BrainToTextDecoder_Trainer:
             random.seed(self.args['seed'])
             torch.manual_seed(self.args['seed'])
 
+        # Build diphone vocabulary before model initialisation (needed to determine n_classes)
+        self.use_diphones = self.args['dataset'].get('use_diphones', False)
+        self.diphone_to_id = None
+        self.id_to_diphone = None
+        if self.use_diphones:
+            import h5py
+            from nejm_b2txt_utils.diphone_utils import build_diphone_vocab, save_diphone_vocab
+            self.logger.info('use_diphones=True: scanning training data to build diphone vocabulary...')
+            train_file_paths_early = [
+                os.path.join(self.args['dataset']['dataset_dir'], s, 'data_train.hdf5')
+                for s in self.args['dataset']['sessions']
+            ]
+            all_mono_seqs = []
+            for path in train_file_paths_early:
+                if os.path.exists(path):
+                    with h5py.File(path, 'r') as f:
+                        for key in f.keys():
+                            try:
+                                all_mono_seqs.append(f[key]['seq_class_ids'][:])
+                            except Exception:
+                                continue
+            self.diphone_to_id, self.id_to_diphone = build_diphone_vocab(all_mono_seqs)
+            n_diphones = len(self.diphone_to_id)  # includes BLANK at index 0
+            self.logger.info(
+                f'Built diphone vocabulary: {n_diphones} diphones '
+                f'(from {len(all_mono_seqs)} training sequences)'
+            )
+            # Override n_classes so the model output layer is sized correctly
+            self.args['dataset']['n_classes'] = n_diphones
+            # Persist vocab alongside training artefacts
+            save_diphone_vocab(self.diphone_to_id, self.id_to_diphone, self.args['output_dir'])
+            self.logger.info(f"Saved diphone vocab to {self.args['output_dir']}/diphone_vocab.json")
+
         # Initialize the model 
         self.model = GRUDecoder(
             neural_dim = self.args['model']['n_input_features'],
@@ -192,7 +225,9 @@ class BrainToTextDecoder_Trainer:
             batch_size = self.args['dataset']['batch_size'],
             must_include_days = None,
             random_seed = self.args['dataset']['seed'],
-            feature_subset = feature_subset
+            feature_subset = feature_subset,
+            use_diphones = self.use_diphones,
+            diphone_to_id = self.diphone_to_id,
             )
         self.train_loader = DataLoader(
             self.train_dataset,
@@ -211,7 +246,9 @@ class BrainToTextDecoder_Trainer:
             batch_size = self.args['dataset']['batch_size'],
             must_include_days = None,
             random_seed = self.args['dataset']['seed'],
-            feature_subset = feature_subset   
+            feature_subset = feature_subset,
+            use_diphones = self.use_diphones,
+            diphone_to_id = self.diphone_to_id,
             )
         self.val_loader = DataLoader(
             self.val_dataset,
@@ -404,6 +441,12 @@ class BrainToTextDecoder_Trainer:
         # Save the args file alongside the checkpoint
         with open(os.path.join(self.args['checkpoint_dir'], 'args.yaml'), 'w') as f:
             OmegaConf.save(config=self.args, f=f)
+
+        # Save diphone vocab alongside the checkpoint so evaluate_model.py can reload it
+        if self.use_diphones and self.diphone_to_id is not None:
+            from nejm_b2txt_utils.diphone_utils import save_diphone_vocab
+            save_diphone_vocab(self.diphone_to_id, self.id_to_diphone, self.args['checkpoint_dir'])
+            self.logger.info(f"Saved diphone vocab to {self.args['checkpoint_dir']}/diphone_vocab.json")
 
     def create_attention_mask(self, sequence_lengths):
 
@@ -719,7 +762,8 @@ class BrainToTextDecoder_Trainer:
                 metrics['losses'].append(loss.cpu().detach().numpy())
 
                 # Calculate PER per day and also avg over entire validation set
-                batch_edit_distance = 0 
+                batch_edit_distance = 0
+                batch_mono_seq_length = 0
                 decoded_seqs = []
                 for iterIdx in range(logits.shape[0]):
                     decoded_seq = torch.argmax(logits[iterIdx, 0 : adjusted_lens[iterIdx], :].clone().detach(),dim=-1)
@@ -730,19 +774,27 @@ class BrainToTextDecoder_Trainer:
                     trueSeq = np.array(
                         labels[iterIdx][0 : phone_seq_lens[iterIdx]].cpu().detach()
                     )
+
+                    # When training with diphones, convert both sequences back to
+                    # monophone IDs before computing edit distance so that PER
+                    # is still reported at the phoneme (not diphone) level.
+                    if self.use_diphones and self.id_to_diphone is not None:
+                        from nejm_b2txt_utils.diphone_utils import diphone_seq_to_mono_seq
+                        decoded_seq = diphone_seq_to_mono_seq(decoded_seq, self.id_to_diphone)
+                        trueSeq    = diphone_seq_to_mono_seq(trueSeq,     self.id_to_diphone)
             
                     batch_edit_distance += F.edit_distance(decoded_seq, trueSeq)
+                    batch_mono_seq_length += len(trueSeq)
 
                     decoded_seqs.append(decoded_seq)
 
             day = batch['day_indicies'][0].item()
                 
             day_per[day]['total_edit_distance'] += batch_edit_distance
-            day_per[day]['total_seq_length'] += torch.sum(phone_seq_lens).item()
-
+            day_per[day]['total_seq_length'] += batch_mono_seq_length if self.use_diphones else torch.sum(phone_seq_lens).item()
 
             total_edit_distance += batch_edit_distance
-            total_seq_length += torch.sum(phone_seq_lens)
+            total_seq_length += batch_mono_seq_length if self.use_diphones else torch.sum(phone_seq_lens)
 
             # Record metrics
             if return_logits: 
@@ -764,7 +816,7 @@ class BrainToTextDecoder_Trainer:
         avg_PER = total_edit_distance / total_seq_length
 
         metrics['day_PERs'] = day_per
-        metrics['avg_PER'] = avg_PER.item()
+        metrics['avg_PER'] = float(avg_PER)
         metrics['avg_loss'] = np.mean(metrics['losses'])
 
         return metrics

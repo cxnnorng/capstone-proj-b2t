@@ -22,7 +22,9 @@ class BrainToTextDataset(Dataset):
             days_per_batch = 1, 
             random_seed = -1,
             must_include_days = None,
-            feature_subset = None
+            feature_subset = None,
+            use_diphones = False,
+            diphone_to_id = None
             ): 
         '''
         trial_indicies:  (dict)      - dictionary with day numbers as keys and lists of trial indices as values
@@ -59,6 +61,12 @@ class BrainToTextDataset(Dataset):
         self.n_days = len(trial_indicies.keys())
 
         self.feature_subset = feature_subset
+
+        # Diphone settings
+        self.use_diphones = use_diphones
+        self.diphone_to_id = diphone_to_id
+        if self.use_diphones and self.diphone_to_id is None:
+            raise ValueError('use_diphones=True requires diphone_to_id to be provided')
 
         # Calculate total number of trials in the dataset
         for d in trial_indicies:
@@ -133,10 +141,17 @@ class BrainToTextDataset(Dataset):
 
                         batch['input_features'].append(input_features)
 
-                        batch['seq_class_ids'].append(torch.from_numpy(g['seq_class_ids'][:]))  # phoneme labels
+                        raw_ids = g['seq_class_ids'][:]
+                        if self.use_diphones:
+                            from nejm_b2txt_utils.diphone_utils import mono_seq_to_diphone_seq
+                            raw_ids = mono_seq_to_diphone_seq(raw_ids, self.diphone_to_id)
+                        batch['seq_class_ids'].append(torch.from_numpy(raw_ids))  # phoneme/diphone labels
                         batch['transcriptions'].append(torch.from_numpy(g['transcription'][:])) # character level transcriptions
                         batch['n_time_steps'].append(g.attrs['n_time_steps']) # number of time steps in the trial - required since we are padding
-                        batch['phone_seq_lens'].append(g.attrs['seq_len']) # number of phonemes in the label - required since we are padding
+                        # when using diphones the sequence length may differ from the stored attr,
+                        # so use the actual converted label length instead
+                        seq_len = len(raw_ids) if self.use_diphones else g.attrs['seq_len']
+                        batch['phone_seq_lens'].append(seq_len) # number of phonemes/diphones in the label - required since we are padding
                         batch['day_indicies'].append(int(d)) # day index of each trial - required for the day specific layers 
                         batch['block_nums'].append(g.attrs['block_num'])
                         batch['trial_nums'].append(g.attrs['trial_num'])
