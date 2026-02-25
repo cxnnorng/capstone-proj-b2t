@@ -37,7 +37,8 @@ source "$(conda info --base)/etc/profile.d/conda.sh"
 conda create -n b2txt25_lm python=3.9 -y
 
 # Activate the new environment
-conda activate b2txt25_lm
+# conda activate b2txt25_lm
+source activate ~/.conda/envs/b2txt25_lm
 
 # Upgrade pip
 pip install --upgrade pip
