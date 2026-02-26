@@ -4,8 +4,8 @@ model:
   rnn_dropout: 0.4 # dropout rate for the GRU layers
   rnn_trainable: true # whether the GRU layers are trainable
   n_layers: 5 # number of GRU layers
-  patch_size: 0 # size of the input patches (0 = disabled, no patching)
-  patch_stride: 0 # stride for the input patches (0 = disabled)
+  patch_size: 4 # size of the input patches (4 time steps - light downsampling)
+  patch_stride: 2 # stride for the input patches (2 time steps - 2x downsampling)
 
   input_network:
     n_input_layers: 1 # number of input layers per network (one network for each day)
@@ -70,7 +70,7 @@ dataset:
     smooth_kernel_std: 2 # standard deviation of the smoothing kernel applied to the data
 
   neural_dim: 512 # dimensionality of the neural data
-  batch_size: 24 # batch size for training (reduced from 64 for longer sequences with patch_size=0)
+  batch_size: 32 # batch size for training (moderate size for patch_stride=2)
   n_classes: 41 # number of classes (phonemes) in the dataset — auto-overridden at runtime when use_diphones: true
   use_diphones: true # if true, train with diphone labels (context-dependent phoneme pairs) instead of monophones
   max_seq_elements: 500 # maximum number of sequence elements (phonemes) for any trial
