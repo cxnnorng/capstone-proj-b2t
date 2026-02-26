@@ -4,9 +4,9 @@
 #SBATCH --partition=a30_normal_q
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
-#SBATCH --cpus-per-task=8
+#SBATCH --cpus-per-task=12
 #SBATCH --mem=64G
-#SBATCH --time=0-08:00:00
+#SBATCH --time=72:00:00
 #SBATCH --gres=gpu:1
 #SBATCH --export=NONE
 
