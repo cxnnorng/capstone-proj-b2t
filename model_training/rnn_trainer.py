@@ -276,7 +276,7 @@ class BrainToTextDecoder_Trainer:
         else:
             raise ValueError(f"Invalid learning rate scheduler type: {self.args['lr_scheduler_type']}")
         
-        self.ctc_loss = torch.nn.CTCLoss(blank = 0, reduction = 'none', zero_infinity = False)
+        self.ctc_loss = torch.nn.CTCLoss(blank = 0, reduction = 'none', zero_infinity = True)
 
         # If a checkpoint is provided, then load from checkpoint
         if self.args['init_from_checkpoint']:
