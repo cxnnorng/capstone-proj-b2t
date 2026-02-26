@@ -16,7 +16,7 @@ model:
 
 gpu_number: '1' # GPU number to use for training, formatted as a string (e.g., '0', '1', etc.)
 mode: train
-use_amp: true # whether to use automatic mixed precision (AMP) for training
+use_amp: false # whether to use automatic mixed precision (AMP) for training
 
 output_dir: trained_models/diphones_rnn # directory to save the trained model and logs
 checkpoint_dir: trained_models/diphones_rnn/checkpoint # directory to save checkpoints during training
@@ -31,11 +31,11 @@ early_stopping_val_steps: 20 # number of validation steps to wait before stoppin
 
 num_training_batches: 120000 # number of training batches to run
 lr_scheduler_type: cosine # type of learning rate scheduler to use
-lr_max: 0.0005 # maximum learning rate for the main model
+lr_max: 5.0e-5 # maximum learning rate for the main model
 lr_min: 0.0001 # minimum learning rate for the main model
 lr_decay_steps: 120000 # number of steps for the learning rate decay
 lr_warmup_steps: 1000 # number of warmup steps for the learning rate scheduler
-lr_max_day: 0.005 # maximum learning rate for the day specific input layers
+lr_max_day: 5.0e-5 # maximum learning rate for the day specific input layers
 lr_min_day: 0.0001 # minimum learning rate for the day specific input layers
 lr_decay_steps_day: 120000 # number of steps for the learning rate decay for the day specific input layers
 lr_warmup_steps_day: 1000 # number of warmup steps for the learning rate scheduler for the day specific input layers
