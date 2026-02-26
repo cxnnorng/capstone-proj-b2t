@@ -228,6 +228,9 @@ class BrainToTextDecoder_Trainer:
             feature_subset = feature_subset,
             use_diphones = self.use_diphones,
             diphone_to_id = self.diphone_to_id,
+            patch_size = self.args['model']['patch_size'],
+            patch_stride = self.args['model']['patch_stride'],
+            min_ctc_ratio = 1.8,
             )
         self.train_loader = DataLoader(
             self.train_dataset,
@@ -249,6 +252,9 @@ class BrainToTextDecoder_Trainer:
             feature_subset = feature_subset,
             use_diphones = self.use_diphones,
             diphone_to_id = self.diphone_to_id,
+            patch_size = self.args['model']['patch_size'],
+            patch_stride = self.args['model']['patch_stride'],
+            min_ctc_ratio = 1.8,
             )
         self.val_loader = DataLoader(
             self.val_dataset,

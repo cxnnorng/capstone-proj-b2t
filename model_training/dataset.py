@@ -24,7 +24,10 @@ class BrainToTextDataset(Dataset):
             must_include_days = None,
             feature_subset = None,
             use_diphones = False,
-            diphone_to_id = None
+            diphone_to_id = None,
+            patch_size = 0,
+            patch_stride = 1,
+            min_ctc_ratio = 1.8
             ): 
         '''
         trial_indicies:  (dict)      - dictionary with day numbers as keys and lists of trial indices as values
@@ -67,6 +70,11 @@ class BrainToTextDataset(Dataset):
         self.diphone_to_id = diphone_to_id
         if self.use_diphones and self.diphone_to_id is None:
             raise ValueError('use_diphones=True requires diphone_to_id to be provided')
+        
+        # CTC alignment filtering settings
+        self.patch_size = patch_size
+        self.patch_stride = patch_stride if patch_stride > 0 else 1
+        self.min_ctc_ratio = min_ctc_ratio  # Minimum output_len/target_len ratio for CTC
 
         # Calculate total number of trials in the dataset
         for d in trial_indicies:
@@ -133,6 +141,24 @@ class BrainToTextDataset(Dataset):
                     
                     try: 
                         g = f[f'trial_{t:04d}']
+                        
+                        # Get sequence info for CTC alignment check
+                        n_time_steps = g.attrs['n_time_steps']
+                        raw_ids = g['seq_class_ids'][:]
+                        if self.use_diphones:
+                            from nejm_b2txt_utils.diphone_utils import mono_seq_to_diphone_seq
+                            raw_ids = mono_seq_to_diphone_seq(raw_ids, self.diphone_to_id)
+                        seq_len = len(raw_ids) if self.use_diphones else g.attrs['seq_len']
+                        
+                        # Calculate expected output length after patching
+                        if self.patch_size > 0:
+                            output_len = (n_time_steps - self.patch_size) / self.patch_stride + 1
+                        else:
+                            output_len = n_time_steps
+                        
+                        # Skip trials with impossible CTC alignments
+                        if seq_len > 0 and output_len / seq_len < self.min_ctc_ratio:
+                            continue
 
                         # Remove features is neccessary 
                         input_features = torch.from_numpy(g['input_features'][:]) # neural data
@@ -140,17 +166,9 @@ class BrainToTextDataset(Dataset):
                             input_features = input_features[:,self.feature_subset]
 
                         batch['input_features'].append(input_features)
-
-                        raw_ids = g['seq_class_ids'][:]
-                        if self.use_diphones:
-                            from nejm_b2txt_utils.diphone_utils import mono_seq_to_diphone_seq
-                            raw_ids = mono_seq_to_diphone_seq(raw_ids, self.diphone_to_id)
                         batch['seq_class_ids'].append(torch.from_numpy(raw_ids))  # phoneme/diphone labels
                         batch['transcriptions'].append(torch.from_numpy(g['transcription'][:])) # character level transcriptions
-                        batch['n_time_steps'].append(g.attrs['n_time_steps']) # number of time steps in the trial - required since we are padding
-                        # when using diphones the sequence length may differ from the stored attr,
-                        # so use the actual converted label length instead
-                        seq_len = len(raw_ids) if self.use_diphones else g.attrs['seq_len']
+                        batch['n_time_steps'].append(n_time_steps) # number of time steps in the trial - required since we are padding
                         batch['phone_seq_lens'].append(seq_len) # number of phonemes/diphones in the label - required since we are padding
                         batch['day_indicies'].append(int(d)) # day index of each trial - required for the day specific layers 
                         batch['block_nums'].append(g.attrs['block_num'])
