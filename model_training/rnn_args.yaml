@@ -31,12 +31,12 @@ early_stopping_val_steps: 20 # number of validation steps to wait before stoppin
 
 num_training_batches: 120000 # number of training batches to run
 lr_scheduler_type: cosine # type of learning rate scheduler to use
-lr_max: 0.001 # maximum learning rate for the main model
-lr_min: 0.00001 # minimum learning rate for the main model
+lr_max: 0.005 # maximum learning rate for the main model
+lr_min: 0.0001 # minimum learning rate for the main model
 lr_decay_steps: 120000 # number of steps for the learning rate decay
 lr_warmup_steps: 1000 # number of warmup steps for the learning rate scheduler
-lr_max_day: 0.001 # maximum learning rate for the day specific input layers
-lr_min_day: 0.00001 # minimum learning rate for the day specific input layers
+lr_max_day: 0.005 # maximum learning rate for the day specific input layers
+lr_min_day: 0.0001 # minimum learning rate for the day specific input layers
 lr_decay_steps_day: 120000 # number of steps for the learning rate decay for the day specific input layers
 lr_warmup_steps_day: 1000 # number of warmup steps for the learning rate scheduler for the day specific input layers
 
@@ -59,12 +59,12 @@ save_val_data: false # whether to save validation data
 
 dataset:
   data_transforms:
-    white_noise_std: 0.5 # standard deviation of the white noise added to the data
-    constant_offset_std: 0.1 # standard deviation of the constant offset added to the data
+    white_noise_std: 1.0 # standard deviation of the white noise added to the data
+    constant_offset_std: 0.2 # standard deviation of the constant offset added to the data
     random_walk_std: 0.0 # standard deviation of the random walk added to the data
     random_walk_axis: -1 # axis along which the random walk is applied
     static_gain_std: 0.0 # standard deviation of the static gain applied to the data
-    random_cut: 0 # number of time steps to randomly cut from the beginning of each batch of trials
+    random_cut: 3 # number of time steps to randomly cut from the beginning of each batch of trials
     smooth_kernel_size: 100 # size of the smoothing kernel applied to the data
     smooth_data: true # whether to smooth the data
     smooth_kernel_std: 2 # standard deviation of the smoothing kernel applied to the data

@@ -144,11 +144,11 @@ class BrainToTextDataset(Dataset):
                         
                         # Get sequence info for CTC alignment check
                         n_time_steps = g.attrs['n_time_steps']
-                        raw_ids = g['seq_class_ids'][:]
+                        seq_len = g.attrs['seq_len']  # True unpadded length (same for mono and diphone)
+                        raw_ids = g['seq_class_ids'][:seq_len]  # Only use unpadded portion
                         if self.use_diphones:
                             from nejm_b2txt_utils.diphone_utils import mono_seq_to_diphone_seq
                             raw_ids = mono_seq_to_diphone_seq(raw_ids, self.diphone_to_id)
-                        seq_len = len(raw_ids) if self.use_diphones else g.attrs['seq_len']
                         
                         # Calculate expected output length after patching
                         if self.patch_size > 0:
