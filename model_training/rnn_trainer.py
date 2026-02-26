@@ -572,7 +572,11 @@ class BrainToTextDecoder_Trainer:
                 # Apply augmentations to the data
                 features, n_time_steps = self.transform_data(features, n_time_steps, 'train')
 
-                adjusted_lens = ((n_time_steps - self.args['model']['patch_size']) / self.args['model']['patch_stride'] + 1).to(torch.int32)
+                # Calculate output sequence length after patching (if patching is enabled)
+                if self.args['model']['patch_size'] > 0:
+                    adjusted_lens = ((n_time_steps - self.args['model']['patch_size']) / self.args['model']['patch_stride'] + 1).to(torch.int32)
+                else:
+                    adjusted_lens = n_time_steps.to(torch.int32)
 
                 # Get phoneme predictions 
                 logits = self.model(features, day_indicies)
@@ -766,7 +770,11 @@ class BrainToTextDecoder_Trainer:
                 with torch.autocast(device_type = "cuda", enabled = self.args['use_amp'], dtype = torch.bfloat16):
                     features, n_time_steps = self.transform_data(features, n_time_steps, 'val')
 
-                    adjusted_lens = ((n_time_steps - self.args['model']['patch_size']) / self.args['model']['patch_stride'] + 1).to(torch.int32)
+                    # Calculate output sequence length after patching (if patching is enabled)
+                    if self.args['model']['patch_size'] > 0:
+                        adjusted_lens = ((n_time_steps - self.args['model']['patch_size']) / self.args['model']['patch_stride'] + 1).to(torch.int32)
+                    else:
+                        adjusted_lens = n_time_steps.to(torch.int32)
 
                     logits = self.model(features, day_indicies)
     

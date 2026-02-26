@@ -4,8 +4,8 @@ model:
   rnn_dropout: 0.4 # dropout rate for the GRU layers
   rnn_trainable: true # whether the GRU layers are trainable
   n_layers: 5 # number of GRU layers
-  patch_size: 8 # size of the input patches (8 time steps) - reduced from 14 to get more output tokens
-  patch_stride: 2 # stride for the input patches (2 time steps) - reduced from 4 to get more output tokens
+  patch_size: 0 # size of the input patches (0 = disabled, no patching)
+  patch_stride: 0 # stride for the input patches (0 = disabled)
 
   input_network:
     n_input_layers: 1 # number of input layers per network (one network for each day)
