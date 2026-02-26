@@ -4,8 +4,8 @@ model:
   rnn_dropout: 0.4 # dropout rate for the GRU layers
   rnn_trainable: true # whether the GRU layers are trainable
   n_layers: 5 # number of GRU layers
-  patch_size: 0 # size of the input patches (0 = no patching, maximum output length)
-  patch_stride: 1 # stride for the input patches (not used when patch_size=0)
+  patch_size: 14 # size of the input patches (14 time steps)
+  patch_stride: 4 # stride for the input patches (4 time steps)
 
   input_network:
     n_input_layers: 1 # number of input layers per network (one network for each day)
@@ -16,7 +16,7 @@ model:
 
 gpu_number: '1' # GPU number to use for training, formatted as a string (e.g., '0', '1', etc.)
 mode: train
-use_amp: false # whether to use automatic mixed precision (AMP) for training
+use_amp: true # whether to use automatic mixed precision (AMP) for training
 
 output_dir: trained_models/diphones_rnn # directory to save the trained model and logs
 checkpoint_dir: trained_models/diphones_rnn/checkpoint # directory to save checkpoints during training
@@ -42,7 +42,7 @@ lr_warmup_steps_day: 1000 # number of warmup steps for the learning rate schedul
 
 beta0: 0.9 # beta0 parameter for the Adam optimizer
 beta1: 0.999 # beta1 parameter for the Adam optimizer
-epsilon: 1.0e-8 # epsilon parameter for the Adam optimizer
+epsilon: 0.1 # epsilon parameter for the Adam optimizer
 weight_decay: 0.001 # weight decay for the main model
 weight_decay_day: 0 # weight decay for the day specific input layers
 seed: 10 # random seed for reproducibility
@@ -70,7 +70,7 @@ dataset:
     smooth_kernel_std: 2 # standard deviation of the smoothing kernel applied to the data
 
   neural_dim: 512 # dimensionality of the neural data
-  batch_size: 24 # batch size for training (reduced for patch_size=0 to fit in GPU memory)
+  batch_size: 64 # batch size for training
   n_classes: 41 # number of classes (phonemes) in the dataset — auto-overridden at runtime when use_diphones: true
   use_diphones: true # if true, train with diphone labels (context-dependent phoneme pairs) instead of monophones
   max_seq_elements: 500 # maximum number of sequence elements (phonemes) for any trial

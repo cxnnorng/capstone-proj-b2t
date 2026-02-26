@@ -230,7 +230,7 @@ class BrainToTextDecoder_Trainer:
             diphone_to_id = self.diphone_to_id,
             patch_size = self.args['model']['patch_size'],
             patch_stride = self.args['model']['patch_stride'],
-            min_ctc_ratio = 1.8,
+            min_ctc_ratio = 0.0,
             )
         self.train_loader = DataLoader(
             self.train_dataset,
@@ -254,7 +254,7 @@ class BrainToTextDecoder_Trainer:
             diphone_to_id = self.diphone_to_id,
             patch_size = self.args['model']['patch_size'],
             patch_stride = self.args['model']['patch_stride'],
-            min_ctc_ratio = 1.8,
+            min_ctc_ratio = 0.0,
             )
         self.val_loader = DataLoader(
             self.val_dataset,
@@ -282,7 +282,7 @@ class BrainToTextDecoder_Trainer:
         else:
             raise ValueError(f"Invalid learning rate scheduler type: {self.args['lr_scheduler_type']}")
         
-        self.ctc_loss = torch.nn.CTCLoss(blank = 0, reduction = 'none', zero_infinity = True)
+        self.ctc_loss = torch.nn.CTCLoss(blank = 0, reduction = 'none', zero_infinity = False)
 
         # If a checkpoint is provided, then load from checkpoint
         if self.args['init_from_checkpoint']:
@@ -595,21 +595,7 @@ class BrainToTextDecoder_Trainer:
                     target_lengths = phone_seq_lens
                     )
                     
-                # Filter out impossible alignments (loss=0 from zero_infinity=True) before taking mean
-                batch_size_ctc = loss.shape[0]
-                valid_losses = loss[loss > 0]
-                n_impossible = batch_size_ctc - len(valid_losses)
-                if len(valid_losses) > 0:
-                    loss = torch.mean(valid_losses)
-                else:
-                    loss = torch.tensor(0.0, device=loss.device, requires_grad=True)
-                
-                # Track impossible alignment rate for logging
-                if not hasattr(self, 'impossible_alignment_count'):
-                    self.impossible_alignment_count = 0
-                    self.total_alignment_count = 0
-                self.impossible_alignment_count += n_impossible
-                self.total_alignment_count += batch_size_ctc
+                loss = torch.mean(loss) # take mean loss over batches
             
             loss.backward()
 
@@ -617,7 +603,7 @@ class BrainToTextDecoder_Trainer:
             if self.args['grad_norm_clip_value'] > 0: 
                 grad_norm = torch.nn.utils.clip_grad_norm_(self.model.parameters(), 
                                                max_norm = self.args['grad_norm_clip_value'],
-                                               error_if_nonfinite = False,
+                                               error_if_nonfinite = True,
                                                foreach = True
                                                )
 
@@ -630,15 +616,10 @@ class BrainToTextDecoder_Trainer:
 
             # Incrementally log training progress
             if i % self.args['batches_per_train_log'] == 0:
-                impossible_rate = 100 * self.impossible_alignment_count / max(self.total_alignment_count, 1)
                 self.logger.info(f'Train batch {i}: ' +
                         f'loss: {(loss.detach().item()):.2f} ' +
                         f'grad norm: {grad_norm:.2f} '
-                        f'time: {train_step_duration:.3f} ' +
-                        f'impossible alignments: {impossible_rate:.1f}%')
-                # Reset counters after logging
-                self.impossible_alignment_count = 0
-                self.total_alignment_count = 0
+                        f'time: {train_step_duration:.3f}')
 
             # Incrementally run a test step
             if i % self.args['batches_per_val_step'] == 0 or i == ((self.args['num_training_batches'] - 1)):
@@ -790,12 +771,7 @@ class BrainToTextDecoder_Trainer:
                         adjusted_lens,
                         phone_seq_lens,
                     )
-                    # Filter out impossible alignments before taking mean
-                    valid_losses = loss[loss > 0]
-                    if len(valid_losses) > 0:
-                        loss = torch.mean(valid_losses)
-                    else:
-                        loss = torch.tensor(0.0, device=loss.device)
+                    loss = torch.mean(loss)
 
                 metrics['losses'].append(loss.cpu().detach().numpy())
 
