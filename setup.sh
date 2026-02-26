@@ -4,11 +4,11 @@
 source "$(conda info --base)/etc/profile.d/conda.sh"
 
 # Create conda environment with Python 3.10
-conda create -n b2txt25 python=3.10 -y
+conda create -n b2txt25_d python=3.10 -y
 
 # Activate the new environment
 # conda activate b2txt25
-source activate ~/.conda/envs/b2txt25
+source activate ~/.conda/envs/b2txt25_d
 
 # Upgrade pip
 pip install --upgrade pip
@@ -39,5 +39,5 @@ pip install \
     bitsandbytes==0.46.0
 
 echo
-echo "Setup complete! Verify it worked by activating the conda environment with the command 'conda activate b2txt25'."
+echo "Setup complete! Verify it worked by activating the conda environment with the command 'conda activate b2txt25_d'."
 echo
