@@ -16,7 +16,7 @@
 ~/redis-7.2.4/src/redis-server --daemonize yes
 
 # Activate LM environment
-conda activate b2txt25_lm
+source activate b2txt25_lm
 
 # Start language model in background
 python language_model/language-model-standalone.py \
@@ -30,7 +30,7 @@ python language_model/language-model-standalone.py \
   --gpu_number 0 &
 
 # Switch env
-conda activate b2txt25
+source activate b2txt25
 
 # Run evaluation
 python evaluate_model.py \
