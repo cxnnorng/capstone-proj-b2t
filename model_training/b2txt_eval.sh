@@ -1,4 +1,4 @@
-#SBATCH --job-name=b2txt25_eval_diphones
+#SBATCH --job-name=b2txt25_eval_monophones
 #SBATCH --account=connorng-2
 #SBATCH --partition=a30_normal_q
 #SBATCH --nodes=1
@@ -9,8 +9,8 @@
 #SBATCH --gres=gpu:1
 #SBATCH --export=NONE
 
-#SBATCH --output=b2txt25_eval_diphones_%j.out
-#SBATCH --error=b2txt25_eval_diphones_%j.err
+#SBATCH --output=b2txt25_eval_monophones_%j.out
+#SBATCH --error=b2txt25_eval_monophones_%j.err
 
 # Start Redis in background
 ~/redis-7.2.4/src/redis-server --daemonize yes
