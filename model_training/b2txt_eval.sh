@@ -54,7 +54,7 @@ for i in {1..3600}; do
 done
 
 # Switch env
-source activate b2txt25
+source activate b2txt25_d
 
 # Run evaluation
 python evaluate_model.py \
