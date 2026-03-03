@@ -29,7 +29,7 @@ source activate b2txt25_lm
 
 # Start language model in background
 python language_model/language-model-standalone.py \
-  --lm_path language_model/pretrained_language_models/openwebtext_1gram_lm_sil \
+  --lm_path language_model/pretrained_language_models/speech_5gram/lang_test \
   --do_opt \
   --nbest 100 \
   --acoustic_scale 0.325 \
