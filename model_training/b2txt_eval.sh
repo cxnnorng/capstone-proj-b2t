@@ -1,3 +1,4 @@
+#!/bin/bash
 #SBATCH --job-name=b2txt25_eval_monophones
 #SBATCH --account=connorng-2
 #SBATCH --partition=a30_normal_q
