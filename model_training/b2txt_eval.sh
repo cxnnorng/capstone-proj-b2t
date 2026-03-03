@@ -49,7 +49,7 @@ source activate b2txt25
 python evaluate_model.py \
   --model_path ../model_training/trained_models/baseline_rnn/checkpoint/best_checkpoint \
   --data_dir ../data/hdf5_data_final \
-  --eval_type test \
+  --eval_type val \
   --gpu_number 0
 
 # Shutdown Redis
