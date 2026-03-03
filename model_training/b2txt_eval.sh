@@ -43,8 +43,15 @@ python ../language_model/language-model-standalone.py \
 
 LM_PID=$!
 
-echo "Waiting for LM to fully initialize..."
-sleep 180
+echo "Waiting up to 60 minutes for LM to connect..."
+
+for i in {1..3600}; do
+  if redis-cli info clients | grep -q "connected_clients:2"; then
+    echo "LM connected to Redis."
+    break
+  fi
+  sleep 1
+done
 
 # Switch env
 source activate b2txt25
