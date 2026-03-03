@@ -12,8 +12,7 @@
 
 #SBATCH --output=b2txt25_eval_monophones_%j.out
 #SBATCH --error=b2txt25_eval_monophones_%j.err
-
-module load gcc/11.2.0
+module load GCC/13.2.0
 
 module load Miniconda3/25.11.1-1
 
