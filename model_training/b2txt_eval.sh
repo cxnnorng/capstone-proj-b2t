@@ -60,7 +60,7 @@ source activate b2txt25_d
 python evaluate_model.py \
   --model_path ../model_training/trained_models/diphones_rnn \
   --data_dir ../data/hdf5_data_final \
-  --eval_type val \
+  --eval_type test \
   --gpu_number 0
 
 # Shutdown Redis
