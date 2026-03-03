@@ -43,7 +43,8 @@ python ../language_model/language-model-standalone.py \
 
 LM_PID=$!
 
-sleep 60   # give LM time to fully load
+echo "Waiting for LM to fully initialize..."
+sleep 180
 
 # Switch env
 source activate b2txt25
