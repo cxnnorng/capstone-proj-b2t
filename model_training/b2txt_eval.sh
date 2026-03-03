@@ -28,6 +28,8 @@ done
 # Activate LM environment
 source activate b2txt25_lm
 
+export LD_LIBRARY_PATH=$CONDA_PREFIX/lib:$LD_LIBRARY_PATH
+
 # Start language model in background
 python ../language_model/language-model-standalone.py \
   --lm_path ../language_model/pretrained_language_models/speech_5gram/lang_test \
@@ -41,7 +43,15 @@ python ../language_model/language-model-standalone.py \
 
 LM_PID=$!
 
-sleep 60   # give LM time to fully load
+echo "Waiting up to 60 minutes for LM to connect..."
+
+for i in {1..3600}; do
+  if ~/redis-7.2.4/src/redis-cli info clients | grep -q "connected_clients:2"; then
+    echo "LM connected to Redis."
+    break
+  fi
+  sleep 1
+done
 
 # Switch env
 source activate b2txt25
