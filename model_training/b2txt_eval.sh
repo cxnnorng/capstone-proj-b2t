@@ -46,7 +46,7 @@ LM_PID=$!
 echo "Waiting up to 60 minutes for LM to connect..."
 
 for i in {1..3600}; do
-  if redis-cli info clients | grep -q "connected_clients:2"; then
+  if ~/redis-7.2.4/src/redis-cli info clients | grep -q "connected_clients:2"; then
     echo "LM connected to Redis."
     break
   fi
