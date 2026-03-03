@@ -1,3 +1,4 @@
+#!/bin/bash
 #SBATCH --job-name=b2txt25_eval_diphones
 #SBATCH --account=connorng-2
 #SBATCH --partition=a30_normal_q
@@ -28,8 +29,8 @@ done
 source activate b2txt25_lm
 
 # Start language model in background
-python language_model/language-model-standalone.py \
-  --lm_path language_model/pretrained_language_models/openwebtext_1gram_lm_sil \
+python ../language_model/language-model-standalone.py \
+  --lm_path ../language_model/pretrained_language_models/speech_5gram/lang_test \
   --do_opt \
   --nbest 100 \
   --acoustic_scale 0.325 \
@@ -47,9 +48,9 @@ source activate b2txt25
 
 # Run evaluation
 python evaluate_model.py \
-  --model_path ../model_training/trained_models/baseline_rnn/checkpoint/best_checkpoint \
+  --model_path ../model_training/trained_models/diphones_rnn \
   --data_dir ../data/hdf5_data_final \
-  --eval_type test \
+  --eval_type val \
   --gpu_number 0
 
 # Shutdown Redis
