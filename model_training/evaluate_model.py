@@ -8,9 +8,25 @@ import time
 from tqdm import tqdm
 import editdistance
 import argparse
+import json
 
 from rnn_model import GRUDecoder
 from evaluate_model_helpers import *
+
+# Calculate model size in MB
+def get_model_size_mb(model):
+    """Calculate model size in MB"""
+    param_size = 0
+    buffer_size = 0
+    
+    for param in model.parameters():
+        param_size += param.nelement() * param.element_size()
+    
+    for buffer in model.buffers():
+        buffer_size += buffer.nelement() * buffer.element_size()
+    
+    size_all_mb = (param_size + buffer_size) / 1024**2
+    return size_all_mb
 
 # argument parser for command line arguments
 parser = argparse.ArgumentParser(description='Evaluate a pretrained RNN model on the copy task dataset.')
@@ -96,6 +112,13 @@ model.to(device)
 # set model to eval mode
 model.eval()
 
+# Calculate and log model size
+model_size_mb = get_model_size_mb(model)
+total_params = sum(p.numel() for p in model.parameters())
+print(f'Model size: {model_size_mb:.2f} MB')
+print(f'Total parameters: {total_params:,}')
+print()
+
 # load data for each session
 test_data = {}
 total_test_trials = 0
@@ -112,6 +135,10 @@ for session in model_args['dataset']['sessions']:
 print(f'Total number of {eval_type} trials: {total_test_trials}')
 print()
 
+# Initialize timing metrics
+inference_times = []  # per trial in milliseconds
+total_trials_processed = 0
+inference_start_time = time.time()
 
 # put neural data through the pretrained model to get phoneme predictions (logits)
 with tqdm(total=total_test_trials, desc='Predicting phoneme sequences', unit='trial') as pbar:
@@ -122,6 +149,8 @@ with tqdm(total=total_test_trials, desc='Predicting phoneme sequences', unit='tr
         input_layer = model_args['dataset']['sessions'].index(session)
         
         for trial in range(len(data['neural_features'])):
+            trial_start_time = time.time()
+            
             # get neural input for the trial
             neural_input = data['neural_features'][trial]
 
@@ -134,10 +163,48 @@ with tqdm(total=total_test_trials, desc='Predicting phoneme sequences', unit='tr
             # run decoding step
             logits = runSingleDecodingStep(neural_input, input_layer, model, model_args, device)
             data['logits'].append(logits)
+            
+            # Calculate latency for this trial
+            trial_end_time = time.time()
+            trial_latency_ms = (trial_end_time - trial_start_time) * 1000
+            inference_times.append(trial_latency_ms)
+            total_trials_processed += 1
 
             pbar.update(1)
 pbar.close()
 
+# Calculate throughput metrics
+total_inference_time = time.time() - inference_start_time
+throughput_trials_per_sec = total_trials_processed / total_inference_time
+
+# Calculate latency statistics
+mean_latency_ms = np.mean(inference_times)
+median_latency_ms = np.median(inference_times)
+p95_latency_ms = np.percentile(inference_times, 95)
+p99_latency_ms = np.percentile(inference_times, 99)
+min_latency_ms = np.min(inference_times)
+max_latency_ms = np.max(inference_times)
+
+# Print performance metrics
+print()
+print("=" * 60)
+print("MODEL INFERENCE PERFORMANCE METRICS")
+print("=" * 60)
+print(f"Model Size: {model_size_mb:.2f} MB")
+print(f"Total Parameters: {total_params:,}")
+print()
+print(f"Inference Throughput: {throughput_trials_per_sec:.2f} trials/sec")
+print(f"Total Inference Time: {total_inference_time:.2f} seconds")
+print()
+print("Per-Trial Latency Statistics:")
+print(f"  Mean:   {mean_latency_ms:.2f} ms")
+print(f"  Median: {median_latency_ms:.2f} ms")
+print(f"  Min:    {min_latency_ms:.2f} ms")
+print(f"  Max:    {max_latency_ms:.2f} ms")
+print(f"  P95:    {p95_latency_ms:.2f} ms")
+print(f"  P99:    {p99_latency_ms:.2f} ms")
+print("=" * 60)
+print()
 
 # convert logits to phoneme sequences and print them out
 for session, data in test_data.items():
@@ -201,11 +268,17 @@ lm_results = {
     'pred_sentence': [],
 }
 
+# Track LM processing time separately
+lm_start_time = time.time()
+lm_trial_times = []
+
 # loop through all trials and put logits into the remote language model to get text predictions
 # note: this takes ~15-20 minutes to run on the entire test split with the 5-gram LM + OPT rescoring (RTX 4090)
 with tqdm(total=total_test_trials, desc='Running remote language model', unit='trial') as pbar:
     for session in test_data.keys():
         for trial in range(len(test_data[session]['logits'])):
+            trial_lm_start = time.time()
+            
             # get trial logits and rearrange them for the LM
             # if trained with diphones, aggregate (T x N_diphones) -> (T x 41)
             # before handing off to the language model pipeline (which is unchanged)
@@ -257,13 +330,40 @@ with tqdm(total=total_test_trials, desc='Running remote language model', unit='t
             else:
                 lm_results['true_sentence'].append(None)
             lm_results['pred_sentence'].append(best_candidate_sentence)
+            
+            # Calculate LM latency for this trial
+            trial_lm_end = time.time()
+            lm_trial_times.append((trial_lm_end - trial_lm_start) * 1000)
 
             # update progress bar
             pbar.update(1)
 pbar.close()
 
+# Calculate LM metrics
+total_lm_time = time.time() - lm_start_time
+lm_throughput = total_trials_processed / total_lm_time
+mean_lm_latency_ms = np.mean(lm_trial_times)
+median_lm_latency_ms = np.median(lm_trial_times)
+p95_lm_latency_ms = np.percentile(lm_trial_times, 95)
+p99_lm_latency_ms = np.percentile(lm_trial_times, 99)
+
+print()
+print("=" * 60)
+print("LANGUAGE MODEL PERFORMANCE METRICS")
+print("=" * 60)
+print(f"LM Throughput: {lm_throughput:.2f} trials/sec")
+print(f"Total LM Processing Time: {total_lm_time:.2f} seconds")
+print()
+print("Per-Trial LM Latency Statistics:")
+print(f"  Mean:   {mean_lm_latency_ms:.2f} ms")
+print(f"  Median: {median_lm_latency_ms:.2f} ms")
+print(f"  P95:    {p95_lm_latency_ms:.2f} ms")
+print(f"  P99:    {p99_lm_latency_ms:.2f} ms")
+print("=" * 60)
+print()
 
 # if using the validation set, lets calculate the aggregate word error rate (WER)
+aggregate_wer = None
 if eval_type == 'val':
     total_true_length = 0
     total_edit_distance = 0
@@ -288,13 +388,61 @@ if eval_type == 'val':
         print(f'WER: {ed} / {100 * len(true_sentence.split())} = {ed / len(true_sentence.split()):.2f}%')
         print()
 
+    aggregate_wer = 100 * total_edit_distance / total_true_length
     print(f'Total true sentence length: {total_true_length}')
     print(f'Total edit distance: {total_edit_distance}')
-    print(f'Aggregate Word Error Rate (WER): {100 * total_edit_distance / total_true_length:.2f}%')
+    print(f'Aggregate Word Error Rate (WER): {aggregate_wer:.2f}%')
+    print()
 
+
+# Save performance metrics to JSON
+performance_metrics = {
+    'model_size_mb': float(model_size_mb),
+    'total_parameters': int(total_params),
+    'uses_diphones': use_diphones,
+    'inference': {
+        'total_trials': int(total_trials_processed),
+        'total_time_sec': float(total_inference_time),
+        'throughput_trials_per_sec': float(throughput_trials_per_sec),
+        'latency_ms': {
+            'mean': float(mean_latency_ms),
+            'median': float(median_latency_ms),
+            'min': float(min_latency_ms),
+            'max': float(max_latency_ms),
+            'p95': float(p95_latency_ms),
+            'p99': float(p99_latency_ms),
+        }
+    },
+    'language_model': {
+        'total_time_sec': float(total_lm_time),
+        'throughput_trials_per_sec': float(lm_throughput),
+        'latency_ms': {
+            'mean': float(mean_lm_latency_ms),
+            'median': float(median_lm_latency_ms),
+            'p95': float(p95_lm_latency_ms),
+            'p99': float(p99_lm_latency_ms),
+        }
+    },
+    'device': str(device),
+    'eval_type': eval_type,
+}
+
+# Add WER if available (validation set only)
+if aggregate_wer is not None:
+    performance_metrics['word_error_rate'] = float(aggregate_wer)
+
+# Save metrics to JSON file with timestamp
+timestamp = time.strftime("%Y%m%d_%H%M%S")
+metrics_file = os.path.join(model_path, f'performance_metrics_{eval_type}_{timestamp}.json')
+with open(metrics_file, 'w') as f:
+    json.dump(performance_metrics, f, indent=2)
+
+print(f"Performance metrics saved to: {metrics_file}")
+print()
 
 # write predicted sentences to a csv file. put a timestamp in the filename (YYYYMMDD_HHMMSS)
-output_file = os.path.join(model_path, f'baseline_rnn_{eval_type}_predicted_sentences_{time.strftime("%Y%m%d_%H%M%S")}.csv')
+output_file = os.path.join(model_path, f'baseline_rnn_{eval_type}_predicted_sentences_{timestamp}.csv')
 ids = [i for i in range(len(lm_results['pred_sentence']))]
 df_out = pd.DataFrame({'id': ids, 'text': lm_results['pred_sentence']})
 df_out.to_csv(output_file, index=False)
+print(f"Predicted sentences saved to: {output_file}")
