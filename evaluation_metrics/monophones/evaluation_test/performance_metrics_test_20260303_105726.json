@@ -1,0 +1,29 @@
+{
+  "model_size_mb": 169.0489845275879,
+  "total_parameters": 44315177,
+  "inference": {
+    "total_trials": 1450,
+    "total_time_sec": 15.981106758117676,
+    "throughput_trials_per_sec": 90.7321390155576,
+    "latency_ms": {
+      "mean": 11.000953378348514,
+      "median": 9.714007377624512,
+      "min": 4.547119140625,
+      "max": 1576.5941143035889,
+      "p95": 14.45190906524658,
+      "p99": 16.851477622985836
+    }
+  },
+  "language_model": {
+    "total_time_sec": 429.97309589385986,
+    "throughput_trials_per_sec": 3.372304020523965,
+    "latency_ms": {
+      "mean": 296.4830267018285,
+      "median": 218.15407276153564,
+      "p95": 818.5079455375671,
+      "p99": 1220.4526305198667
+    }
+  },
+  "device": "cuda:0",
+  "eval_type": "test"
+}

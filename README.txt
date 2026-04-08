@@ -1,0 +1,22 @@
+Capstone Project User Manual
+
+This package contains three versions of our brain-to-text experiment: baseline, diphones, and reduced. The experiment workflow is the same across all three versions, and each version includes the same setup documentation and training/evaluation process. Because this project is compute-intensive, our runs were performed on Virginia Tech ARC (or a similar high-compute environment).
+
+Installation is handled the same way for each version. Open any one of the three experiment folders and follow its README instructions for environment setup, data download, language model download, and language model setup:
+- capstone-proj-b2t-baseline/
+- capstone-proj-b2t-diphones/
+- capstone-proj-b2t-reduced/
+
+How to use:
+1. Choose one experiment version.
+2. Complete that folder's setup steps.
+3. Go to its model_training directory.
+4. Submit the provided training and evaluation .sh Slurm batch scripts on ARC (or equivalent infrastructure).
+
+How to run a demo:
+1. Pick one version (baseline, diphones, or reduced).
+2. Run one training job and one evaluation job using that version's model_training scripts.
+3. Confirm output artifacts are generated.
+4. Review:
+   - evaluation_metrics/ for metrics and predicted sentence outputs from evaluation and test trials.
+   - trained_models/ for saved checkpoints, the graph-generation script, and PNG training graphs for all three versions.

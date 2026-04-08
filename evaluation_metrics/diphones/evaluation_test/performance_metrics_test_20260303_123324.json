@@ -1,0 +1,30 @@
+{
+  "model_size_mb": 171.4984588623047,
+  "total_parameters": 44957292,
+  "uses_diphones": true,
+  "inference": {
+    "total_trials": 1450,
+    "total_time_sec": 17.175983905792236,
+    "throughput_trials_per_sec": 84.42020020238947,
+    "latency_ms": {
+      "mean": 10.163184856546335,
+      "median": 9.78553295135498,
+      "min": 4.582881927490234,
+      "max": 269.87743377685547,
+      "p95": 14.836907386779782,
+      "p99": 17.455863952636715
+    }
+  },
+  "language_model": {
+    "total_time_sec": 816.0590620040894,
+    "throughput_trials_per_sec": 1.7768321773660225,
+    "latency_ms": {
+      "mean": 562.6795573070132,
+      "median": 430.0224781036377,
+      "p95": 1376.059639453887,
+      "p99": 1934.2395305633545
+    }
+  },
+  "device": "cuda:0",
+  "eval_type": "test"
+}
